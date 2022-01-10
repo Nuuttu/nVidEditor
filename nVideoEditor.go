@@ -47,7 +47,7 @@ func main() {
 	//	timg, _ := walk.Resources.Image("./ico256.ico")
 
 	if err := (MainWindow{
-		Size:     Size{500, 500},
+		Size:     Size{400, 500},
 		AssignTo: &mw.MainWindow,
 		Title:    "Nut Video Editor",
 		OnDropFiles: func(files []string) {
@@ -80,19 +80,42 @@ func main() {
 				AssignTo: &mw.vidLength,
 				Text:     "",
 			},
-
 			ImageView{
 				AssignTo: &mw.thumbIV,
 				//Image:    timg,
 				Margin: 10,
 				Mode:   ImageViewModeZoom,
 			},
-
 			Composite{
-				Layout:        Grid{Columns: 4},
+				Layout: Grid{
+					Columns: 5,
+				},
 				StretchFactor: 4,
 				Children: []Widget{
-					Label{Text: "Start Time"},
+					Label{
+						Text:       "",
+						ColumnSpan: 1,
+					},
+					Label{
+						Text:       "hh",
+						ColumnSpan: 1,
+					},
+					Label{
+						Text:       "mm",
+						ColumnSpan: 1,
+					},
+					Label{
+						Text:       "ss",
+						ColumnSpan: 1,
+					},
+					Label{
+						Text:       "",
+						ColumnSpan: 1,
+					},
+					Label{
+						Text:       "Start Time",
+						ColumnSpan: 1,
+					},
 					TextEdit{
 						MaxLength:     2,
 						CompactHeight: true,
@@ -126,7 +149,14 @@ func main() {
 							times.Ss = startEdits.Text()
 						},
 					},
-					Label{Text: "End Time"},
+					Label{
+						Text:       "",
+						ColumnSpan: 1,
+					},
+					Label{
+						Text:       "End Time",
+						ColumnSpan: 1,
+					},
 					TextEdit{
 						MaxLength:     2,
 						CompactHeight: true,
@@ -160,6 +190,21 @@ func main() {
 							times.Es = endEdits.Text()
 						},
 					},
+					PushButton{
+						Text:       "To end of of the video",
+						ColumnSpan: 1,
+						OnClicked: func() {
+							if len(mw.prevFilePath) > 1 {
+								time := getVideoDuration(mw.prevFilePath, mw.exPath)
+								times.Eh = time[:1]
+								times.Em = time[2:4]
+								times.Es = time[5:7]
+								endEdith.SetText(addZeroes(times.Eh))
+								endEditm.SetText(times.Em)
+								endEdits.SetText(times.Es)
+							}
+						},
+					},
 				},
 			},
 
@@ -188,6 +233,16 @@ func main() {
 						walk.MsgBox(mw, "Error", "No video selected", walk.MsgBoxIconInformation)
 					} else {
 						mw.cutVideo(mw.exPath, mw.prevFilePath, mw.vidName, times.Sh, times.Sm, times.Ss, times.Eh, times.Em, times.Es)
+					}
+				},
+			},
+			PushButton{
+				Text: "Open File Location",
+				OnClicked: func() {
+					cmd := exec.Command(`explorer`, `/select,`, mw.exPath+`\`+mw.vidName+`.mp4`)
+					fmt.Println(cmd)
+					if err := cmd.Run(); err != nil {
+						log.Println(err)
 					}
 				},
 			},
