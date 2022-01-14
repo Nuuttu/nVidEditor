@@ -54,6 +54,7 @@ type ConcatComposite struct {
 }
 
 func main() {
+
 	// Create a new MainWindow
 	mw := new(MyMainWindow)
 	cut := new(CutComposite)
@@ -100,6 +101,10 @@ func main() {
 			Menu{
 				Text: "&Help",
 				Items: []MenuItem{
+					Action{
+						Text:        "&Help",
+						OnTriggered: func() { mw.helpAction_Triggered() },
+					},
 					Action{
 						Text:        "&About",
 						OnTriggered: func() { mw.aboutAction_Triggered() },
@@ -384,8 +389,11 @@ func main() {
 					PushButton{
 						Text: "Concat these",
 						OnClicked: func() {
-							//fmt.Println(mw.vidList)
-							mw.concatVideo(mw.conVidName)
+							if len(mw.vidList) < 2 {
+								walk.MsgBox(mw, "Error", "Select at least 2 videos", walk.MsgBoxIconInformation)
+							} else {
+								mw.concatVideo(mw.conVidName)
+							}
 						},
 					},
 					PushButton{
@@ -404,6 +412,8 @@ func main() {
 	mw.initNotifyIcon()
 	defer mw.ni.Dispose()
 
+	mw.askAboutFfmpeg()
+
 	mw.Run()
 }
 
@@ -419,8 +429,8 @@ func main() {
 
 
 
-
- */
+ CUTTING FUNCS
+*/
 
 func (mw *MyMainWindow) cutOpenFile() error {
 	dlg := new(walk.FileDialog)
@@ -509,9 +519,10 @@ func cutVideo(exPath, item, name, sh, sm, ss, eh, em, es string) error {
 
 
 
-// Make sure there are at least 2 videos
 // Some videos can't be the first. Maybe cutting them first works
 
+
+CONCATTING FUNCS
 */
 func (mw *MyMainWindow) concatOpenFile() error {
 	dlg := new(walk.FileDialog)
@@ -658,8 +669,8 @@ func (mw *MyMainWindow) concatVideo(name string) {
 
 
 
-
- */
+OTHER FUNCS
+*/
 
 func (mw *MyMainWindow) aboutAction_Triggered() {
 	walk.MsgBox(mw,
@@ -668,13 +679,41 @@ func (mw *MyMainWindow) aboutAction_Triggered() {
 		walk.MsgBoxOK|walk.MsgBoxIconInformation)
 }
 
-/*
-func (mw *MyMainWindow) openAction_Triggered() {
-	if err := mw.openFile(); err != nil {
-		log.Print(err)
+func (mw *MyMainWindow) helpAction_Triggered() {
+	walk.MsgBox(mw,
+		"nVidEditor",
+		"Install ffmpeg from https://www.ffmpeg.org/download.html\r\nOr you can drop ffmpeg.exe and ffprobe.exe to ffmpeg -named folder in the exe folder",
+		walk.MsgBoxOK|walk.MsgBoxIconInformation)
+}
+
+func (mw *MyMainWindow) askAboutFfmpeg() {
+	if !isFfmpegInstalled() {
+		//walk.MsgBox(mw, "Error", "You don't seem to have ffmpeg  installed. \n\r Place ffmpeg.exe and ffprobe.exe into ffmpeg folder next to nVideEditor.exe", walk.MsgBoxIconInformation)
+		/*
+			switch walk.MsgBox(
+				mw,
+				"Hey!",
+				"You don't seem to have ffmpeg  installed. \n\rPlace ffmpeg.exe and ffprobe.exe into ffmpeg folder next to nVideEditor.exe\n\rDo you want to create a ffmpeg folder?",
+				walk.MsgBoxYesNoCancel,
+			) {
+			case walk.DlgCmdYes:
+				fmt.Println("moi1")
+				createFfmpegFolder()
+			case walk.DlgCmdNo:
+				fmt.Println("moi2")
+			case walk.DlgCmdCancel:
+				fmt.Println("moi3")
+			}
+		*/
+
+		switch walk.MsgBox(mw, "Hey!", "You don't seem to have ffmpeg  installed. \n\rYou need to have ffmpeg and ffprobe working \n\rDo you want to create a ffmpeg folder?", walk.MsgBoxYesNo) {
+		case walk.DlgCmdYes:
+			createFfmpegFolder()
+		case walk.DlgCmdNo:
+			fmt.Println("moi2")
+		}
 	}
 }
-*/
 
 func (mw *MyMainWindow) initNotifyIcon() {
 	// Create the notify icon and make sure we clean it up on exit.

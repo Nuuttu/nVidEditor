@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +13,59 @@ import (
 	"github.com/lxn/walk"
 	//. "github.com/lxn/walk/declarative"
 )
+
+func createFfmpegFolder() {
+	cmd := exec.Command("cmd", "/C", "mkdir", "ffmpeg")
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func isFfmpegInstalled() bool {
+	args := []string{
+		//"/C",
+		//"WHERE.exe",
+		//"/q",
+		"ffmpeg.exe",
+		//"2>&1",
+	} //https://stackoverflow.com/questions/28954729/exec-with-double-quoted-argument
+	cmd := exec.Command("where", args...)
+
+	var serr bytes.Buffer
+	cmd.Stderr = &serr
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		fmt.Println(err)
+	}
+	/*
+		fmt.Println(cmd)
+		//fmt.Println(out)
+		//fmt.Println(out.String())
+		fmt.Println("OUTPUCT:: ", cmd.Stdout)
+		fmt.Println("OUTPUCT:: ", out.String())
+		fmt.Println("ERRORR:", cmd.Stderr)
+		fmt.Println("ERRORR:", serr.String())
+		//fmt.Printf("%s", cmd)
+		//fmt.Println(serr.String())
+		//fmt.Println("CMD.OUT: ", string(out))
+
+		fmt.Println("OUTPUCT:: ", reflect.TypeOf(cmd.Stdout))
+		fmt.Println("OUTPUCT:: ", reflect.TypeOf(out.String()))
+		fmt.Println("ERRORR:", reflect.TypeOf(cmd.Stderr))
+		fmt.Println("ERRORR:", reflect.TypeOf(serr.String()))
+
+		fmt.Println("LEN", len(out.String()))
+		fmt.Println("LEN", len(serr.String()))
+	*/
+	if len(out.String()) == 0 {
+		return false
+	}
+
+	return true
+}
 
 func openFileLocation(exPath, vidName string) {
 	cmd := exec.Command(`explorer`, `/select,`+exPath+`\`+vidName+`.mp4`)
