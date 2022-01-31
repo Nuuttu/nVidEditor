@@ -14,6 +14,8 @@ import (
 	//. "github.com/lxn/walk/declarative"
 )
 
+// https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z
+
 func createFfmpegFolder() {
 	cmd := exec.Command("cmd", "/C", "mkdir", "ffmpeg")
 	err := cmd.Run()

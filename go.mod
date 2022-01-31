@@ -1,4 +1,4 @@
-module nVideoEditor.go
+module nVideoEditor
 
 go 1.17
 
