@@ -122,7 +122,7 @@ func main() {
 		OnDropFiles: func(files []string) {
 			//mw.openVideo(string(files[0])) // if edit or concat visible/enable
 			fmt.Println(string(files[0])[len(string(files[0]))-4:])
-			if string(files[0])[len(string(files[0]))-4:] == ".mp4" || string(files[0])[len(string(files[0]))-4:] == ".mkv" {
+			if string(files[0])[len(string(files[0]))-4:] == ".mp4" || string(files[0])[len(string(files[0]))-4:] == ".mkv" || string(files[0])[len(string(files[0]))-4:] == ".wmv" {
 				if cut.Enabled() {
 					mw.cutSetVideo(string(files[0]))
 				}
@@ -132,7 +132,7 @@ func main() {
 			} else {
 				walk.MsgBox(mw,
 					"Wrong type of file",
-					"Added file needs to be in - .mp4 | .mkv | .wmw - format for now",
+					"Added file needs to be in - .mp4 | .mkv | .wmv - format for now",
 					walk.MsgBoxOK|walk.MsgBoxIconInformation)
 			}
 		},
@@ -432,6 +432,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	if fileExists("./resources/ico256.ico") {
+		icon, _ := walk.NewIconFromFile("./resources/ico256.ico")
+		mw.SetIcon(icon)
+	}
+
 	mw.initNotifyIcon()
 	defer mw.ni.Dispose()
 
@@ -510,28 +515,37 @@ func (mw *MyMainWindow) cutVideo(exPath, item, name, sh, sm, ss, eh, em, es stri
 	start := timeFormat(sh, sm, ss)
 	end := timeFormat(eh, em, es)
 
-	args := []string{
-		"/C",
-		`ffmpeg.exe`,
-		"-progress",
-		"-",
-		"-nostats",
-		"-ss",
-		formatStartTime(start),
-		"-i",
-		item,
-		"-to",
-		formatEndTime(start, end),
-		"-c",
-		"copy",
-		"-f",
-		"mp4",
-		name + ".mp4",
-		"2>&1",
-	}
 	//https://stackoverflow.com/questions/28954729/exec-with-double-quoted-argument
-	// -progress
-	cmd := exec.Command(`cmd`, args...)
+
+	/*
+		args := []string{
+			"/C",
+			`ffmpeg.exe`,
+			"-progress",
+			"-",
+			"-nostats",
+			"-ss",
+			formatStartTime(start),
+			"-i",
+			item,
+			"-to",
+			formatEndTime(start, end),
+			"-c",
+			"copy",
+			"-f",
+			"mp4",
+			name + ".mp4",
+			"2>&1",
+		}
+
+		cmd := exec.Command(`cmd`, args...)
+	*/
+	cmd := exec.Command(`cmd`)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow: true,
+		CmdLine:    `/C ffmpeg.exe -progress - -nostats -ss ` + formatStartTime(start) + ` -i "` + item + `" -to ` + formatEndTime(start, end) + ` -c copy -f mp4 "` + name + `.mp4" 2>&1`,
+	}
+	fmt.Println("cmd.sysprocattr + + + ", cmd.SysProcAttr.CmdLine)
 	cmd.Dir = exPath
 	/*
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
@@ -559,6 +573,7 @@ func (mw *MyMainWindow) cutVideo(exPath, item, name, sh, sm, ss, eh, em, es stri
 		fmt.Println(fmt.Sprint(err))
 	}
 
+	// Getting Progress from ffmpeg stdout
 	fmt.Println("READER READING")
 	reader := bufio.NewReader(pipe)
 	line, err := reader.ReadString('\n')
@@ -700,6 +715,7 @@ func (mw *MyMainWindow) concatVideo(name string) {
 			"intermediate" + strconv.Itoa(i) + ".ts",
 		}
 		cmd := exec.Command(`cmd`, args...)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 		if err := cmd.Run(); err != nil {
 			log.Println(err)
 		}
@@ -720,7 +736,8 @@ func (mw *MyMainWindow) concatVideo(name string) {
 	//https://stackoverflow.com/questions/28954729/exec-with-double-quoted-argument
 	cmd := exec.Command(`cmd`)
 	cmd.Dir = mw.exPath
-	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+
 	cmd.SysProcAttr.CmdLine = `/C ffmpeg.exe -i "concat:` + intersToConcat + `" -c copy -bsf:a aac_adtstoasc ` + name + `.mp4`
 	//cmd.SysProcAttr.CmdLine = `/C ffmpeg.exe -i "concat:` + intersToConcat + `" -g 120 -keyint_min 4 -c copy -bsf:a aac_adtstoasc ` + name + `.mp4`
 	err := cmd.Start()
@@ -770,6 +787,14 @@ func (mw *MyMainWindow) helpAction_Triggered() {
 
 func (mw *MyMainWindow) askAboutFfmpeg() {
 	if !isFfmpegInstalled() {
+		if !fileExists("./ffmpeg/ffmpeg.exe") {
+			switch walk.MsgBox(mw, "Hey!", "You don't seem to have ffmpeg  installed.\nPut ffmpeg.exe and ffprobe.exe into resources folder to continue.\nOr install ffmpeg to your computer.", walk.MsgBoxYesNo) {
+			case walk.DlgCmdYes:
+				fmt.Println("Yes Moi")
+			case walk.DlgCmdNo:
+				fmt.Println("No Moi")
+			}
+		}
 		//walk.MsgBox(mw, "Error", "You don't seem to have ffmpeg  installed. \n\r Place ffmpeg.exe and ffprobe.exe into ffmpeg folder next to nVideEditor.exe", walk.MsgBoxIconInformation)
 		/*
 			switch walk.MsgBox(
@@ -788,12 +813,15 @@ func (mw *MyMainWindow) askAboutFfmpeg() {
 			}
 		*/
 
-		switch walk.MsgBox(mw, "Hey!", "You don't seem to have ffmpeg  installed. \n\rYou need to have ffmpeg and ffprobe working \n\rDo you want to create a ffmpeg folder?", walk.MsgBoxYesNo) {
-		case walk.DlgCmdYes:
-			createFfmpegFolder()
-		case walk.DlgCmdNo:
-			fmt.Println("moi2")
-		}
+		/*
+			switch walk.MsgBox(mw, "Hey!", "You don't seem to have ffmpeg  installed. \n\rYou need to have ffmpeg and ffprobe working \n\rDo you want to create a ffmpeg folder?", walk.MsgBoxYesNo) {
+			case walk.DlgCmdYes:
+				createFfmpegFolder()
+			case walk.DlgCmdNo:
+				fmt.Println("moi2")
+			}
+		*/
+
 	}
 }
 
@@ -806,8 +834,8 @@ func (mw *MyMainWindow) initNotifyIcon() {
 	}
 
 	// We load our icon from a file.
-	if fileExists("./ico256.ico") {
-		icon, err := walk.Resources.Icon("./ico256.ico")
+	if fileExists("./resources/ico256.ico") {
+		icon, err := walk.Resources.Icon("./resources/ico256.ico")
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -19,6 +19,7 @@ import (
 
 func createFfmpegFolder() {
 	cmd := exec.Command("cmd", "/C", "mkdir", "ffmpeg")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	err := cmd.Run()
 	if err != nil {
 		fmt.Println(err)
@@ -34,7 +35,7 @@ func isFfmpegInstalled() bool {
 		//"2>&1",
 	} //https://stackoverflow.com/questions/28954729/exec-with-double-quoted-argument
 	cmd := exec.Command("where", args...)
-
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	var serr bytes.Buffer
 	cmd.Stderr = &serr
 	var out bytes.Buffer
@@ -70,8 +71,27 @@ func isFfmpegInstalled() bool {
 	return true
 }
 
+// GO FROM HERE NEXT TIME
+func unzipFfmpeg() {
+	args := []string{
+		"/C",
+		"tar",
+		"-xf",
+		"ffmpeg/ffmpeg.zip",
+		"-C",
+		"ffmpeg",
+	}
+	cmd := exec.Command(`cmd`, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func openFileLocation(exPath, vidName string) {
 	cmd := exec.Command(`explorer`, `/select,`+exPath+`\`+vidName+`.mp4`)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	fmt.Println(cmd)
 	if err := cmd.Run(); err != nil {
 		log.Println(err)
@@ -82,6 +102,7 @@ func openFileLocation(exPath, vidName string) {
 
 func removeThumbnail() {
 	acmd := exec.Command("cmd", "/C", "rm", "./thumb.jpg")
+	acmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	err := acmd.Run()
 	if err != nil {
 		fmt.Println(err)
@@ -195,6 +216,7 @@ func getVideoDuration(path string) string {
 	// Don't use " " in csv="p=0"
 
 	cmd := exec.Command(`cmd`, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Println(fmt.Sprint(err) + ": " + string(output))
@@ -219,6 +241,7 @@ func getVideoDurationMM(path string) string {
 	// Don't use " " in csv="p=0"
 
 	cmd := exec.Command(`cmd`, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Println(fmt.Sprint(err) + ": " + string(output))
@@ -259,6 +282,7 @@ func playVideo(item string) {
 		"-autoexit"} //https://stackoverflow.com/questions/28954729/exec-with-double-quoted-argument
 
 	cmd := exec.Command("cmd", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	if err := cmd.Run(); err != nil {
 		fmt.Println(err)
 	}
@@ -285,6 +309,7 @@ func getThumbnail(fp string) (walk.Image, error) {
 		"thumb.jpg",
 	} //https://stackoverflow.com/questions/28954729/exec-with-double-quoted-argument
 	cmd := exec.Command("cmd", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	err := cmd.Run()
 	if err != nil {
 		fmt.Println(err)
@@ -296,7 +321,7 @@ func getThumbnail(fp string) (walk.Image, error) {
 
 func removeIntermediates() {
 	cmd := exec.Command(`cmd`)
-	cmd.SysProcAttr = &syscall.SysProcAttr{}
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	cmd.SysProcAttr.CmdLine = `/C del *.ts`
 	err := cmd.Start()
 	if err != nil {
