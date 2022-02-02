@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -161,6 +162,14 @@ func convertFormat(t int) (h, m, s int) {
 	return hh, mm, ss
 }
 
+func convertToMM(h, m, s string) int {
+	hh, _ := strconv.Atoi(h)
+	mm, _ := strconv.Atoi(m)
+	ss, _ := strconv.Atoi(s)
+
+	return (hh*3600 + mm*60 + ss) * 1000
+}
+
 func fileExists(fp string) bool {
 	info, err := os.Stat(fp)
 	if os.IsNotExist(err) {
@@ -191,6 +200,53 @@ func getVideoDuration(path string) string {
 		fmt.Println(fmt.Sprint(err) + ": " + string(output))
 	}
 	return strings.Split(string(output), `.`)[0] //string(output)
+}
+
+// This is needed to follow progress if cut is going over original video duration
+func getVideoDurationMM(path string) string {
+	args := []string{
+		"/C",
+		`ffprobe.exe`,
+		"-i",
+		path,
+		"-show_entries",
+		"format=duration",
+		"-v",
+		"quiet",
+		"-of",
+		`csv=p=0`,
+	} //https://stackoverflow.com/questions/28954729/exec-with-double-quoted-argument
+	// Don't use " " in csv="p=0"
+
+	cmd := exec.Command(`cmd`, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + string(output))
+	}
+	t := string(output)
+	reg, _ := regexp.Compile("[^0-9.]+")
+	ttmm := reg.ReplaceAllString(t, "")
+	/*
+		reg, _ := regexp.Compile("[^0-9.]+")
+		ts := reg.ReplaceAllString(t, "")
+		t1 := strings.Split(ts, ".")[0]
+		t2 := strings.SplitAfter(ts, ".")[1]
+		tmm := t2[:3]
+		tt, _ := strconv.Atoi(t1)
+		ttmm, _ := strconv.Atoi(tmm)
+	*/
+	// fmt.Println("tt", tt*1000+ttmm)
+	// fmt.Println("ttmm", ttmm)
+	return ttmm
+}
+
+func getProgress(progressTime, cutTimeInSeconds string) int {
+	//fmt.Println("progresstime", progressTime)
+	//fmt.Println("cuttime", cutTimeInSeconds)
+	cutTime, _ := strconv.Atoi(cutTimeInSeconds)
+	progTime, _ := strconv.Atoi(progressTime)
+	prog := (progTime / (cutTime * 10))
+	return prog
 }
 
 func playVideo(item string) {

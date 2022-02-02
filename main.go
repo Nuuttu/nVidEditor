@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -42,6 +44,11 @@ type MyMainWindow struct {
 	conNameEdit     *walk.TextEdit
 	conVidName      string
 	conThumbIV      *walk.ImageView
+
+	progressBar           *walk.CustomWidget
+	progressBarLabel      *walk.Label
+	progressFullLength    string
+	progressCurrentLength string
 }
 
 // there must be a better way to do this :>
@@ -114,6 +121,20 @@ func main() {
 		},
 		OnDropFiles: func(files []string) {
 			//mw.openVideo(string(files[0])) // if edit or concat visible/enable
+			fmt.Println(string(files[0])[len(string(files[0]))-4:])
+			if string(files[0])[len(string(files[0]))-4:] == ".mp4" || string(files[0])[len(string(files[0]))-4:] == ".mkv" {
+				if cut.Enabled() {
+					mw.cutSetVideo(string(files[0]))
+				}
+				if con.Enabled() {
+					mw.concatSetVideo(string(files[0]))
+				}
+			} else {
+				walk.MsgBox(mw,
+					"Wrong type of file",
+					"Added file needs to be in - .mp4 | .mkv | .wmw - format for now",
+					walk.MsgBoxOK|walk.MsgBoxIconInformation)
+			}
 		},
 		Layout: VBox{Margins: Margins{10, 10, 10, 10}, Spacing: 10},
 		Children: []Widget{
@@ -123,7 +144,6 @@ func main() {
 				Enabled:  true,
 				Layout:   VBox{MarginsZero: true, SpacingZero: true},
 				Children: []Widget{
-
 					TextLabel{
 						//CompactHeight: true,
 						MaxSize:  Size{100, 100},
@@ -278,6 +298,7 @@ func main() {
 								OnClicked: func() {
 									if len(mw.cutPrevFilePath) > 1 {
 										time := getVideoDuration(mw.cutPrevFilePath)
+										getVideoDurationMM(mw.cutPrevFilePath)
 										times.Eh = time[:1]
 										times.Em = time[2:4]
 										times.Es = time[5:7]
@@ -289,7 +310,6 @@ func main() {
 							},
 						},
 					},
-
 					Composite{
 						Layout: Grid{Columns: 2},
 						Children: []Widget{
@@ -314,7 +334,7 @@ func main() {
 							if mw.cutPrevFilePath == "" {
 								walk.MsgBox(mw, "Error", "No video selected", walk.MsgBoxIconInformation)
 							} else {
-								go cutVideo(mw.exPath, mw.cutPrevFilePath, mw.cutVidName, times.Sh, times.Sm, times.Ss, times.Eh, times.Em, times.Es, *mw.ni)
+								go mw.cutVideo(mw.exPath, mw.cutPrevFilePath, mw.cutVidName, times.Sh, times.Sm, times.Ss, times.Eh, times.Em, times.Es, *mw.ni)
 
 								//mw.cutVideo(mw.exPath, mw.prevFilePath, mw.cutVidName, times.Sh, times.Sm, times.Ss, times.Eh, times.Em, times.Es)
 							}
@@ -338,7 +358,6 @@ func main() {
 				Layout:   VBox{Margins: Margins{5, 5, 5, 5}, Spacing: 5},
 				Visible:  false,
 				Enabled:  false,
-
 				Children: []Widget{
 					TextEdit{
 						CompactHeight: true,
@@ -353,7 +372,6 @@ func main() {
 							mw.concatOpenFile()
 						},
 					},
-
 					Composite{
 						MinSize:            Size{300, 300},
 						AlwaysConsumeSpace: true,
@@ -399,6 +417,16 @@ func main() {
 					},
 				},
 			},
+			Label{
+				AssignTo: &mw.progressBarLabel,
+				Text:     "ProgressBarHERE",
+			},
+			CustomWidget{
+				AssignTo:         &mw.progressBar,
+				MaxSize:          Size{100, 10},
+				MinSize:          Size{100, 10},
+				ClearsBackground: true,
+			},
 		},
 	}.Create()); err != nil {
 		log.Fatal(err)
@@ -431,9 +459,8 @@ func (mw *MyMainWindow) cutOpenFile() error {
 	dlg := new(walk.FileDialog)
 	dlg.FilePath = mw.cutPrevFilePath
 	//dlg.Filter = "Image Files (*.emf;*.bmp;*.exif;*.gif;*.jpeg;*.jpg;*.png;*.tiff)|*.emf;*.bmp;*.exif;*.gif;*.jpeg;*.jpg;*.png;*.tiff"
-	dlg.Filter = "Image Files (*.mp4;*.mkv)|*.mp4;*.mkv"
+	dlg.Filter = "Image Files (*.mp4;*.mkv;*.wmv)|*.mp4;*.mkv;*.wmv"
 	dlg.Title = "Select a Video"
-
 	if ok, err := dlg.ShowOpen(mw); err != nil {
 		return err
 	} else if !ok {
@@ -462,20 +489,33 @@ func (mw *MyMainWindow) cutSetVideo(filepath string) {
 func (mw *MyMainWindow) addVideoToEditCut(filename, filepath string, ivm walk.Image) {
 	mw.cutThumbIV.SetImage(ivm)
 	mw.vidLength.SetText(getVideoDuration(filepath))
-
 }
 
 // FHHHUuuuhHHUH arguments are formatted automatically probably. Took me a while to understand that
-func cutVideo(exPath, item, name, sh, sm, ss, eh, em, es string, ni walk.NotifyIcon) {
+func (mw *MyMainWindow) cutVideo(exPath, item, name, sh, sm, ss, eh, em, es string, ni walk.NotifyIcon) {
+	fmt.Println("Starting the cutting")
 	if fileExists(exPath + `\` + name + ".mp4") {
 		timenow := time.Now()
 		name = name + "-" + timeFormat(strconv.Itoa(timenow.Hour()), strconv.Itoa(timenow.Minute()), strconv.Itoa(timenow.Second()))
 	}
+
+	mw.progressCurrentLength = strconv.Itoa(convertToMM(eh, em, es) - convertToMM(sh, sm, ss))
+	/*
+		mw.progressFullLength = getVideoDurationMM(item)
+		lengthInInt, _ := strconv.Atoi(mw.progressFullLength)
+		if convertToMM(eh, em, es)+convertToMM(sh, sm, ss) > lengthInInt {
+			mw.progressCurrentLength = mw.progressFullLength
+		}
+	*/
 	start := timeFormat(sh, sm, ss)
 	end := timeFormat(eh, em, es)
+
 	args := []string{
 		"/C",
 		`ffmpeg.exe`,
+		"-progress",
+		"-",
+		"-nostats",
 		"-ss",
 		formatStartTime(start),
 		"-i",
@@ -487,30 +527,75 @@ func cutVideo(exPath, item, name, sh, sm, ss, eh, em, es string, ni walk.NotifyI
 		"-f",
 		"mp4",
 		name + ".mp4",
-	} //https://stackoverflow.com/questions/28954729/exec-with-double-quoted-argument
-
+		"2>&1",
+	}
+	//https://stackoverflow.com/questions/28954729/exec-with-double-quoted-argument
+	// -progress
 	cmd := exec.Command(`cmd`, args...)
 	cmd.Dir = exPath
-	//var stderr bytes.Buffer
-	//cmd.Stderr = &stderr
+	/*
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+		cmd.SysProcAttr.CmdLine = `/C ffmpeg.exe -progress - -nostats -ss ` + formatStartTime(start) + ` -i "` + item + `" -to ` + formatEndTime(start, end) + ` -c copy -f mp4 "` + name + `.mp4" 2>&1`
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		var stdout bytes.Buffer
+		cmd.Stdout = &stdout
+		var stdin bytes.Buffer
+		cmd.Stdin = &stdin
+	*/
+	pipe, _ := cmd.StdoutPipe()
+
+	fmt.Println("command executing: ", cmd)
+	//fmt.Println("command executing: ", cmd.SysProcAttr.CmdLine)
+	/*
+		// https://blog.kowalczyk.info/article/wOYk/advanced-command-execution-in-go-with-osexec.html
+		var stdoutBuf bytes.Buffer
+		// var stderrBuf bytes.Buffer
+		cmd.Stdout = io.MultiWriter(os.Stdout, &stdoutBuf)
+		// cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+	*/
 	err := cmd.Start()
 	if err != nil {
 		fmt.Println(fmt.Sprint(err))
 	}
+
+	fmt.Println("READER READING")
+	reader := bufio.NewReader(pipe)
+	line, err := reader.ReadString('\n')
+	for err == nil {
+		if strings.Contains(line, "out_time_ms") {
+			reg, _ := regexp.Compile("[^0-9]+")
+			currentMM := reg.ReplaceAllString(line, "")
+			mw.progressBarLabel.SetText(strconv.Itoa(getProgress(currentMM, mw.progressCurrentLength)))
+		}
+		line, err = reader.ReadString('\n')
+	}
+
 	err = cmd.Wait() // Change the system for waiting. This freezes the whole application
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("error after wait", err)
 	}
-	fmt.Println(cmd.Stdout)
+
+	mw.progressBarLabel.SetText("DONE")
+
+	/*
+		outStr, errStr := string(stdoutBuf.Bytes()), string(stderrBuf.Bytes())
+		fmt.Printf("\nout:\n%s\nerr:\n%s\n", outStr, errStr)
+	*/
+	// fmt.Println(cmd.Stdout)
 	if err := ni.ShowInfo("Video cutting done!", "Thanks for using Nve!"); err != nil {
 		log.Fatal(err)
 	}
 	//fmt.Println(stderr)
 	// https://stackoverflow.com/questions/18159704/how-to-debug-exit-status-1-error-when-running-exec-command-in-golang
+	// fmt.Printf("%s", cmd.SysProcAttr.CmdLine)
 	fmt.Printf("%s", cmd)
 }
 
 /*
+
+
+
 
 
 
