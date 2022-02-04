@@ -45,8 +45,9 @@ type MyMainWindow struct {
 	conVidName      string
 	conThumbIV      *walk.ImageView
 
+	progressComposite     *walk.Composite
 	progressBar           *walk.CustomWidget
-	progressBarLabel      *walk.Label
+	progressBarLabel      *walk.TextLabel
 	progressFullLength    string
 	progressCurrentLength string
 }
@@ -79,7 +80,7 @@ func main() {
 	//	timg, _ := walk.Resources.Image("./ico256.ico")
 
 	if err := (MainWindow{
-		Size:     Size{360, 540},
+		Size:     Size{Width: 360, Height: 540},
 		AssignTo: &mw.MainWindow,
 		Title:    "Nut Video Editor",
 		MenuItems: []MenuItem{
@@ -136,7 +137,7 @@ func main() {
 					walk.MsgBoxOK|walk.MsgBoxIconInformation)
 			}
 		},
-		Layout: VBox{Margins: Margins{10, 10, 10, 10}, Spacing: 10},
+		Layout: VBox{Margins: Margins{Left: 10, Top: 10, Right: 10, Bottom: 10}, Spacing: 10},
 		Children: []Widget{
 			Composite{
 				AssignTo: &cut.Composite,
@@ -146,7 +147,7 @@ func main() {
 				Children: []Widget{
 					TextLabel{
 						//CompactHeight: true,
-						MaxSize:  Size{100, 100},
+						MaxSize:  Size{Width: 100, Height: 100},
 						AssignTo: &mw.cutTextLabel,
 						//ReadOnly:      true,
 						Text: "Drop a video here",
@@ -166,18 +167,18 @@ func main() {
 						Children: []Widget{
 							Label{
 								Text:       "Video Length: ",
-								MinSize:    Size{100, 0},
+								MinSize:    Size{Width: 100, Height: 0},
 								ColumnSpan: 1,
 							},
 							Label{
 								AssignTo:   &mw.vidLength,
 								Text:       " ",
-								MinSize:    Size{100, 0},
+								MinSize:    Size{Width: 100, Height: 0},
 								ColumnSpan: 1,
 							},
 							HSpacer{
 								//Text:       " ",
-								MinSize:    Size{50, 0},
+								MinSize:    Size{Width: 50, Height: 0},
 								ColumnSpan: 1,
 							},
 						},
@@ -222,7 +223,7 @@ func main() {
 								MaxLength:     2,
 								CompactHeight: true,
 								ColumnSpan:    1,
-								MaxSize:       Size{30, 30},
+								MaxSize:       Size{Width: 30, Height: 30},
 								AssignTo:      &startEdith,
 								Text:          times.Sh,
 								OnTextChanged: func() {
@@ -233,7 +234,7 @@ func main() {
 								MaxLength:     2,
 								CompactHeight: true,
 								ColumnSpan:    1,
-								MaxSize:       Size{30, 30},
+								MaxSize:       Size{Width: 30, Height: 30},
 								AssignTo:      &startEditm,
 								Text:          times.Sm,
 								OnTextChanged: func() {
@@ -244,7 +245,7 @@ func main() {
 								MaxLength:     2,
 								CompactHeight: true,
 								ColumnSpan:    1,
-								MaxSize:       Size{30, 30},
+								MaxSize:       Size{Width: 30, Height: 30},
 								AssignTo:      &startEdits,
 								Text:          times.Ss,
 								OnTextChanged: func() {
@@ -263,7 +264,7 @@ func main() {
 								MaxLength:     2,
 								CompactHeight: true,
 								ColumnSpan:    1,
-								MaxSize:       Size{30, 30},
+								MaxSize:       Size{Width: 30, Height: 30},
 								AssignTo:      &endEdith,
 								Text:          times.Eh,
 								OnTextChanged: func() {
@@ -274,7 +275,7 @@ func main() {
 								MaxLength:     2,
 								CompactHeight: true,
 								ColumnSpan:    1,
-								MaxSize:       Size{30, 30},
+								MaxSize:       Size{Width: 30, Height: 30},
 								AssignTo:      &endEditm,
 								Text:          times.Em,
 								OnTextChanged: func() {
@@ -285,7 +286,7 @@ func main() {
 								MaxLength:     2,
 								CompactHeight: true,
 								ColumnSpan:    1,
-								MaxSize:       Size{30, 30},
+								MaxSize:       Size{Width: 30, Height: 30},
 								AssignTo:      &endEdits,
 								Text:          times.Es,
 								OnTextChanged: func() {
@@ -355,7 +356,7 @@ func main() {
 			},
 			Composite{
 				AssignTo: &con.Composite,
-				Layout:   VBox{Margins: Margins{5, 5, 5, 5}, Spacing: 5},
+				Layout:   VBox{Margins: Margins{Left: 5, Top: 5, Right: 5, Bottom: 5}, Spacing: 5},
 				Visible:  false,
 				Enabled:  false,
 				Children: []Widget{
@@ -373,11 +374,11 @@ func main() {
 						},
 					},
 					Composite{
-						MinSize:            Size{300, 300},
+						MinSize:            Size{Width: 300, Height: 300},
 						AlwaysConsumeSpace: true,
 						AssignTo:           &mw.vidListComp,
 						Layout: HBox{
-							Margins: Margins{10, 0, 10, 0},
+							Margins: Margins{Left: 10, Top: 0, Right: 10, Bottom: 0},
 						},
 						Children: []Widget{},
 					},
@@ -417,16 +418,32 @@ func main() {
 					},
 				},
 			},
-			Label{
+			TextLabel{
+				//ColumnSpan: 1,
+
 				AssignTo: &mw.progressBarLabel,
-				Text:     "ProgressBarHERE",
-			},
-			CustomWidget{
-				AssignTo:         &mw.progressBar,
-				MaxSize:          Size{100, 10},
-				MinSize:          Size{100, 10},
-				ClearsBackground: true,
-			},
+				Text:     "nVidEditor",
+			}, /*
+				Composite{
+					AssignTo: &mw.progressComposite,
+					Layout: Grid{
+						MarginsZero: true,
+						SpacingZero: true,
+						Columns:     1,
+					},
+					Children: []Widget{
+
+						CustomWidget{
+							ColumnSpan:          1,
+							AssignTo:            &mw.progressBar,
+							MaxSize:             Size{Height: 20},
+							ClearsBackground:    true,
+							InvalidatesOnResize: true,
+							PaintPixels:         mw.paintProgressbar,
+						},
+					},
+				},
+			*/
 		},
 	}.Create()); err != nil {
 		log.Fatal(err)
@@ -471,7 +488,7 @@ func (mw *MyMainWindow) cutOpenFile() error {
 	} else if !ok {
 		return nil
 	}
-	mw.cutSetVideo(dlg.FilePath)
+	go mw.cutSetVideo(dlg.FilePath)
 	return nil
 }
 
@@ -487,7 +504,7 @@ func (mw *MyMainWindow) cutSetVideo(filepath string) {
 	if err != nil {
 		log.Println(err)
 	}
-	mw.addVideoToEditCut(filename, filepath, ivm)
+	go mw.addVideoToEditCut(filename, filepath, ivm)
 	//removeThumbnail()
 }
 
@@ -581,7 +598,9 @@ func (mw *MyMainWindow) cutVideo(exPath, item, name, sh, sm, ss, eh, em, es stri
 		if strings.Contains(line, "out_time_ms") {
 			reg, _ := regexp.Compile("[^0-9]+")
 			currentMM := reg.ReplaceAllString(line, "")
-			mw.progressBarLabel.SetText(strconv.Itoa(getProgress(currentMM, mw.progressCurrentLength)))
+			proge := getProgress(currentMM, mw.progressCurrentLength)
+			//	mw.progressBar.SetWidthPixels(proge * mw.progressComposite.BoundsPixels().Width / 100)
+			mw.progressBarLabel.SetText(strconv.Itoa(proge))
 		}
 		line, err = reader.ReadString('\n')
 	}
@@ -592,7 +611,7 @@ func (mw *MyMainWindow) cutVideo(exPath, item, name, sh, sm, ss, eh, em, es stri
 	}
 
 	mw.progressBarLabel.SetText("DONE")
-
+	//mw.progressBar.SetWidthPixels(mw.progressComposite.ClientBounds().Width)
 	/*
 		outStr, errStr := string(stdoutBuf.Bytes()), string(stderrBuf.Bytes())
 		fmt.Printf("\nout:\n%s\nerr:\n%s\n", outStr, errStr)
@@ -787,7 +806,7 @@ func (mw *MyMainWindow) helpAction_Triggered() {
 
 func (mw *MyMainWindow) askAboutFfmpeg() {
 	if !isFfmpegInstalled() {
-		if !fileExists("./ffmpeg/ffmpeg.exe") {
+		if !fileExists("./resources/ffmpeg/ffmpeg.exe") || !fileExists("./resources/ffmpeg/ffprobe.exe") {
 			switch walk.MsgBox(mw, "Hey!", "You don't seem to have ffmpeg  installed.\nPut ffmpeg.exe and ffprobe.exe into resources folder to continue.\nOr install ffmpeg to your computer.", walk.MsgBoxYesNo) {
 			case walk.DlgCmdYes:
 				fmt.Println("Yes Moi")
@@ -852,11 +871,7 @@ func (mw *MyMainWindow) initNotifyIcon() {
 		if button != walk.LeftButton {
 			return
 		}
-		if err := func() {
-			openFileLocation(mw.exPath, mw.vidName)
-		}; err != nil {
-			log.Println(err)
-		}
+		openFileLocation(mw.exPath, mw.vidName)
 	})
 	openLocationAction := walk.NewAction()
 	if err := openLocationAction.SetText("&Open File Location"); err != nil {
