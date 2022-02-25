@@ -32,6 +32,8 @@ type MyMainWindow struct {
 	vidList     []string
 	vidListComp *walk.Composite
 
+	cutAttributes CutAttributes // Tästä vois jatkaa parantamalla tätä
+
 	cutPrevFilePath string
 	cutTextEdit     *walk.TextEdit
 	cutNameEdit     *walk.TextEdit
@@ -44,12 +46,22 @@ type MyMainWindow struct {
 	conNameEdit     *walk.TextEdit
 	conVidName      string
 	conThumbIV      *walk.ImageView
+	conWorking      bool
 
 	progressComposite     *walk.Composite
 	progressBar           *walk.CustomWidget
 	progressBarLabel      *walk.TextLabel
 	progressFullLength    string
 	progressCurrentLength string
+}
+
+type CutAttributes struct {
+	cutPrevFilePath string
+	cutTextEdit     *walk.TextEdit
+	cutNameEdit     *walk.TextEdit
+	cutVidName      string
+	cutThumbIV      *walk.ImageView
+	cutTextLabel    *walk.TextLabel
 }
 
 // there must be a better way to do this :>
@@ -60,6 +72,9 @@ type CutComposite struct {
 type ConcatComposite struct {
 	*walk.Composite
 }
+
+var ffmpegPath string
+var ffprobePath string
 
 func main() {
 
@@ -77,6 +92,8 @@ func main() {
 	var startEdith, startEditm, startEdits, endEdith, endEditm, endEdits *walk.TextEdit
 	times := struct{ Sh, Sm, Ss, Eh, Em, Es string }{"", "", "", "", "", ""}
 	mw.vidName = "cut Video Name"
+	mw.cutVidName = "cut"
+	mw.conWorking = false
 	//	timg, _ := walk.Resources.Image("./ico256.ico")
 
 	if err := (MainWindow{
@@ -344,6 +361,7 @@ func main() {
 					PushButton{
 						Text: "Open File Location",
 						OnClicked: func() {
+							fmt.Println("PUSHED OPEN LOACAION")
 							openFileLocation(mw.exPath, mw.cutVidName)
 							/* cmd := exec.Command(`explorer`, `/select,`, mw.exPath+`\`+mw.cutVidName+`.mp4`)
 							fmt.Println(cmd)
@@ -457,6 +475,8 @@ func main() {
 	mw.initNotifyIcon()
 	defer mw.ni.Dispose()
 
+	ffmpegPath = "ffmpeg.exe"
+	ffprobePath = "ffprobe.exe"
 	mw.askAboutFfmpeg()
 
 	mw.Run()
@@ -560,7 +580,7 @@ func (mw *MyMainWindow) cutVideo(exPath, item, name, sh, sm, ss, eh, em, es stri
 	cmd := exec.Command(`cmd`)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		HideWindow: true,
-		CmdLine:    `/C ffmpeg.exe -progress - -nostats -ss ` + formatStartTime(start) + ` -i "` + item + `" -to ` + formatEndTime(start, end) + ` -c copy -f mp4 "` + name + `.mp4" 2>&1`,
+		CmdLine:    `/C ` + ffmpegPath + ` -progress - -nostats -ss ` + formatStartTime(start) + ` -i "` + item + `" -to ` + formatEndTime(start, end) + ` -c copy -f mp4 "` + name + `.mp4" 2>&1`,
 	}
 	fmt.Println("cmd.sysprocattr + + + ", cmd.SysProcAttr.CmdLine)
 	cmd.Dir = exPath
@@ -635,7 +655,10 @@ func (mw *MyMainWindow) cutVideo(exPath, item, name, sh, sm, ss, eh, em, es stri
 
 
 
-// Some videos can't be the first. Maybe cutting them first works
+
+
+
+// Some videos can't be the first. Maybe handling them first works
 
 
 CONCATTING FUNCS
@@ -647,7 +670,7 @@ func (mw *MyMainWindow) concatOpenFile() error {
 	dlg.Filter = "Image Files (*.mp4;*.mkv)|*.mp4;*.mkv"
 	dlg.Title = "Select a Video"
 
-	if ok, err := dlg.ShowOpen(mw.Form()); err != nil {
+	if ok, err := dlg.ShowOpen(mw); err != nil {
 		return err
 	} else if !ok {
 		return nil
@@ -713,6 +736,8 @@ func (mw *MyMainWindow) addVideoToList(filename, path string, img walk.Image) {
 }
 
 func (mw *MyMainWindow) concatVideo(name string) {
+	mw.conWorking = true
+	go mw.conWorkProgress()
 	if fileExists(mw.exPath + `\` + name + ".mp4") {
 		timenow := time.Now()
 		name = name + "-" + timeFormat(strconv.Itoa(timenow.Hour()), strconv.Itoa(timenow.Minute()), strconv.Itoa(timenow.Second()))
@@ -722,7 +747,7 @@ func (mw *MyMainWindow) concatVideo(name string) {
 		fmt.Println("Generating intermediate file ", i, "...")
 		args := []string{
 			"/C",
-			`ffmpeg.exe`,
+			ffmpegPath,
 			"-i",
 			n,
 			"-c",
@@ -757,7 +782,7 @@ func (mw *MyMainWindow) concatVideo(name string) {
 	cmd.Dir = mw.exPath
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 
-	cmd.SysProcAttr.CmdLine = `/C ffmpeg.exe -i "concat:` + intersToConcat + `" -c copy -bsf:a aac_adtstoasc ` + name + `.mp4`
+	cmd.SysProcAttr.CmdLine = `/C ` + ffmpegPath + ` -i "concat:` + intersToConcat + `" -c copy -bsf:a aac_adtstoasc ` + name + `.mp4`
 	//cmd.SysProcAttr.CmdLine = `/C ffmpeg.exe -i "concat:` + intersToConcat + `" -g 120 -keyint_min 4 -c copy -bsf:a aac_adtstoasc ` + name + `.mp4`
 	err := cmd.Start()
 	if err != nil {
@@ -771,13 +796,54 @@ func (mw *MyMainWindow) concatVideo(name string) {
 	if err := mw.ni.ShowInfo("Video concatting done!", "Thanks for using Nve!"); err != nil {
 		log.Fatal(err)
 	}
+	mw.conWorking = false
 	// https://stackoverflow.com/questions/18159704/how-to-debug-exit-status-1-error-when-running-exec-command-in-golang
 	//fmt.Printf("%s", cmd)
 
 	removeIntermediates()
 }
 
+func (mw *MyMainWindow) conWorkProgress() {
+	for mw.conWorking == true {
+		mw.progressBarLabel.SetText("working.")
+		if mw.conWorking == false {
+			break
+		}
+		time.Sleep(1 * time.Second)
+		mw.progressBarLabel.SetText("working..")
+		if mw.conWorking == false {
+			break
+		}
+		time.Sleep(1 * time.Second)
+		mw.progressBarLabel.SetText("working..")
+		if mw.conWorking == false {
+			break
+		}
+		time.Sleep(1 * time.Second)
+		mw.progressBarLabel.SetText("working...")
+		if mw.conWorking == false {
+			break
+		}
+		time.Sleep(1 * time.Second)
+		mw.progressBarLabel.SetText("working....")
+		if mw.conWorking == false {
+			break
+		}
+		time.Sleep(1 * time.Second)
+		mw.progressBarLabel.SetText("working.....")
+		if mw.conWorking == false {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+	mw.progressBarLabel.SetText("DONE")
+} // Errors won't stop this maybe.
+
 /*
+
+
+
+
 
 
 
@@ -800,14 +866,14 @@ func (mw *MyMainWindow) aboutAction_Triggered() {
 func (mw *MyMainWindow) helpAction_Triggered() {
 	walk.MsgBox(mw,
 		"nVidEditor",
-		"Install ffmpeg from https://www.ffmpeg.org/download.html\r\nOr you can drop ffmpeg.exe and ffprobe.exe to ffmpeg -named folder in the exe folder",
+		"Install ffmpeg from https://www.ffmpeg.org/download.html\r\nOr you can drop ffmpeg.exe and ffprobe.exe into ./resources/ffmpeg -named folder",
 		walk.MsgBoxOK|walk.MsgBoxIconInformation)
 }
 
 func (mw *MyMainWindow) askAboutFfmpeg() {
 	if !isFfmpegInstalled() {
-		if !fileExists("./resources/ffmpeg/ffmpeg.exe") || !fileExists("./resources/ffmpeg/ffprobe.exe") {
-			switch walk.MsgBox(mw, "Hey!", "You don't seem to have ffmpeg  installed.\nPut ffmpeg.exe and ffprobe.exe into resources folder to continue.\nOr install ffmpeg to your computer.", walk.MsgBoxYesNo) {
+		if !fileExists(`resources\ffmpeg\ffmpeg.exe`) || !fileExists(`resources\ffmpeg\ffprobe.exe`) {
+			switch walk.MsgBox(mw, "Hey!", "You don't seem to have ffmpeg  installed.\nPut ffmpeg.exe and ffprobe.exe into resources/ffmpeg folder to continue.\nOr install ffmpeg to your computer.", walk.MsgBoxYesNo) {
 			case walk.DlgCmdYes:
 				fmt.Println("Yes Moi")
 			case walk.DlgCmdNo:
@@ -840,7 +906,8 @@ func (mw *MyMainWindow) askAboutFfmpeg() {
 				fmt.Println("moi2")
 			}
 		*/
-
+		ffmpegPath = `resources\ffmpeg\ffmpeg.exe`
+		ffprobePath = `resources\ffmpeg\ffprobe.exe`
 	}
 }
 

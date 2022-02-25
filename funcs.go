@@ -16,7 +16,7 @@ import (
 )
 
 // https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z
-
+/*
 func createFfmpegFolder() {
 	cmd := exec.Command("cmd", "/C", "mkdir", "ffmpeg")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
@@ -25,7 +25,7 @@ func createFfmpegFolder() {
 		fmt.Println(err)
 	}
 }
-
+*/
 func isFfmpegInstalled() bool {
 	args := []string{
 		//"/C",
@@ -72,6 +72,7 @@ func isFfmpegInstalled() bool {
 }
 
 // GO FROM HERE NEXT TIME
+/*
 func unzipFfmpeg() {
 	args := []string{
 		"/C",
@@ -88,16 +89,39 @@ func unzipFfmpeg() {
 		log.Fatal(err)
 	}
 }
+*/
 
+// WHY NO WODK HOLY GOD JESUS CHRIST HOLY MOTHER OF MERCY HOLY HOLY HOLY
 func openFileLocation(exPath, vidName string) {
-	cmd := exec.Command(`explorer`, `/select,`+exPath+`\`+vidName+`.mp4`)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	fmt.Println(cmd)
+
+	//fmt.Println("expa", exPath)
+	//fmt.Println("vidnam", vidName)
+
+	cmd := exec.Command(`cmd`)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow: true,
+		//CmdLine:    `/C start ` + exPath,
+		CmdLine: `/C start explorer.exe ` + exPath,
+	}
+	//fmt.Println("cmd", cmd)
 	if err := cmd.Run(); err != nil {
 		log.Println(err)
-		fmt.Println("Ignore the error...")
 	}
-	// WHY THE ERROR!?!??!?!? It works
+
+	/*
+		cmd := exec.Command(`explorer`)
+
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow: true,
+			CmdLine:    `/select,` + exPath + `\` + vidName + `.mp4`,
+		}
+		fmt.Println("cmd: ", cmd.SysProcAttr.CmdLine)
+		if err := cmd.Run(); err != nil {
+			log.Println(err)
+			fmt.Println("Ignore the error...")
+		}
+		// WHY THE ERROR!?!??!?!? It works
+	*/
 }
 
 func removeThumbnail() {
@@ -202,7 +226,7 @@ func fileExists(fp string) bool {
 func getVideoDuration(path string) string {
 	args := []string{
 		"/C",
-		`ffprobe.exe`,
+		ffprobePath,
 		"-i",
 		path,
 		"-show_entries",
@@ -228,7 +252,7 @@ func getVideoDuration(path string) string {
 func getVideoDurationMM(path string) string {
 	args := []string{
 		"/C",
-		`ffprobe.exe`,
+		ffprobePath,
 		"-i",
 		path,
 		"-show_entries",
@@ -297,7 +321,7 @@ func getThumbnail(fp string) (walk.Image, error) {
 		"rm",
 		"thumb.jpg",
 		"|",
-		`ffmpeg.exe`,
+		ffmpegPath,
 		"-ss",
 		"00:00:01.00",
 		"-i",
@@ -310,11 +334,12 @@ func getThumbnail(fp string) (walk.Image, error) {
 	} //https://stackoverflow.com/questions/28954729/exec-with-double-quoted-argument
 	cmd := exec.Command("cmd", args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	fmt.Printf("%s", cmd)
 	err := cmd.Run()
 	if err != nil {
 		fmt.Println(err)
 	}
-	//fmt.Printf("%s", cmd)
+	fmt.Printf("%s", cmd)
 	defer removeThumbnail()
 	return walk.NewImageFromFile("./thumb.jpg")
 }
